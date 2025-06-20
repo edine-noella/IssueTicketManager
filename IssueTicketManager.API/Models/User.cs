@@ -17,8 +17,8 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
     
-    public ICollection<Issue> CreatedIssues { get; set; } //issues created by the user
-    public ICollection<Issue> AssignedIssues { get; set; }
-    public ICollection<Comment> Comments { get; set; }
+    public ICollection<Issue>? CreatedIssues { get; set; } //issues created by the user
+    public ICollection<Issue>? AssignedIssues { get; set; }
+    public ICollection<Comment>? Comments { get; set; }
     
 }
