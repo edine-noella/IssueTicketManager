@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace IssueTicketManager.API.Models;
 
+[Index(nameof(Email), IsUnique = true)]
 public class User
 {
     public int Id { get; set; }

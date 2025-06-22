@@ -1,5 +1,6 @@
 using IssueTicketManager.API.Data;
 using IssueTicketManager.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace IssueTicketManager.API.Repositories;
 
@@ -14,6 +15,11 @@ public class UserRepository : IUserRepository
 
     public async Task CreateUser(User user)
     {
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+        if (existingUser != null)
+            throw new InvalidOperationException("A user with this email already exists.");
+        
+        
         await _context.Users.AddAsync(user);
         await _context.SaveChangesAsync();
     }
