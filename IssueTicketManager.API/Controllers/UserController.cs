@@ -38,7 +38,21 @@ public class UserController : ControllerBase
       }
 
       await _userRepository.UpdateUser(user, id);
-      return Ok("User updated successfully.");
+      return NoContent();
+   }
+
+   [HttpGet]
+   public async Task<IActionResult> GetAllUsers()
+   {
+      var users = await _userRepository.GetUsers();
+
+      return Ok(users);
+   }
+   
+   [HttpGet("{id}")]
+   public async Task<ActionResult<User>> GetUserById(int id) {
+      var user = await _userRepository.GetUserById(id);
+      return Ok(user);
    }
    
    
