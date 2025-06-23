@@ -42,8 +42,24 @@ public class UserController : ControllerBase
          return BadRequest(ModelState);
       }
 
-      await _userRepository.UpdateUser(user, id);
-      return NoContent();
+      try
+      {
+         var userToUpdate = await _userRepository.GetUserById(id);
+         var duplicateUserEmail = await _userRepository.GetUserByEmail(user.Email);
+         if (duplicateUserEmail != null && duplicateUserEmail.Id != id)
+         {
+            return Conflict(new { message = "User with email already exists." });
+         }
+
+         await _userRepository.UpdateUser(user, id);
+         return NoContent();
+
+      }
+      catch (KeyNotFoundException)
+      {
+         return NotFound(new {message = "User not found."});
+      }
+     
    }
 
    [HttpGet]
