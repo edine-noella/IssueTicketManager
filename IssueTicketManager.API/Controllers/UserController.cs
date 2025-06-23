@@ -25,14 +25,13 @@ public class UserController : ControllerBase
 
       await _userRepository.CreateUser(user);
 
-      return Ok("User created successfully.");
-      // return CreatedAtAction(nameof(CreateUser), new { id = user.Id }, user);
+      
+      return CreatedAtAction(nameof(CreateUser), new { id = user.Id }, user);
    }
 
    [HttpPut("{id}")]
    public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
    {
-      Console.WriteLine("We are updating the user here!");
       if (!ModelState.IsValid)
       {
          return BadRequest(ModelState);
@@ -41,4 +40,6 @@ public class UserController : ControllerBase
       await _userRepository.UpdateUser(user, id);
       return Ok("User updated successfully.");
    }
+   
+   
 }
