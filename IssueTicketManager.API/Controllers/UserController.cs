@@ -23,6 +23,11 @@ public class UserController : ControllerBase
          return BadRequest(ModelState);
       }
 
+      var existingUserWithSameEmail = await _userRepository.GetUserByEmail(user.Email);
+      if (existingUserWithSameEmail != null)
+      {
+         return Conflict(new{ message ="User with this email already exists." });
+      }
       await _userRepository.CreateUser(user);
 
       
