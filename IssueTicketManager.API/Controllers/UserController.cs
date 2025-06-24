@@ -1,5 +1,6 @@
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories;
+using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IssueTicketManager.API.Controllers;
