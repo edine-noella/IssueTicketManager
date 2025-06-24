@@ -1,5 +1,6 @@
 using IssueTicketManager.API.Data;
 using IssueTicketManager.API.Models;
+using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace IssueTicketManager.API.Repositories;

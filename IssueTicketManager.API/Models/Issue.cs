@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace IssueTicketManager.API.Models;
 public enum IssueStatus
@@ -28,11 +29,13 @@ public class Issue
     // Foreign keys
     public int CreatorId { get; set; }
     public int? AssigneeId { get; set; }
-        
-    public User Creator { get; set; } //issue has one creator
-    public User Assignee { get; set; }
+    [JsonIgnore]
+    public User Creator { get; set; } 
+    [JsonIgnore]
+    public User? Assignee { get; set; }
     
-    public ICollection<Comment> Comments { get; set; }
-    public ICollection<IssueLabel> IssueLabels { get; set; } 
+
+    public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+    public ICollection<IssueLabel> IssueLabels { get; set; }  = new List<IssueLabel>();
     
 }
