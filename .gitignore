@@ -32,3 +32,6 @@ secrets.json
 
 # OS metadata
 .DS_Store
+
+# app settings
+appsettings.json
