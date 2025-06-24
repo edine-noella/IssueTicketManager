@@ -148,6 +148,12 @@ namespace IssueTicketManager.API.Migrations
                 name: "IX_Issues_CreatorId",
                 table: "Issues",
                 column: "CreatorId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
         }
 
         /// <inheritdoc />
