@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace IssueTicketManager.API.Controllers;
 
-[Route("[controller]")]
+[Route("api/[controller]")]
 [ApiController]
 public class UserController : ControllerBase
 {
@@ -31,7 +31,7 @@ public class UserController : ControllerBase
       await _userRepository.CreateUser(user);
 
       
-      return CreatedAtAction(nameof(CreateUser), new { id = user.Id }, user);
+      return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
    }
 
    [HttpPut("{id}")]
