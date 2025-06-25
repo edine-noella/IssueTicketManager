@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace IssueTicketManager.API.Models;
 
@@ -12,5 +13,6 @@ public class Label
         
     public string Color { get; set; }
         
-    public ICollection<IssueLabel> IssueLabels { get; set; }
+    
+    public ICollection<IssueLabel>? IssueLabels { get; set; }
 }

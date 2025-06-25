@@ -120,8 +120,7 @@ namespace IssueTicketManager.API.Migrations
                         name: "FK_IssueLabels_Labels_LabelId",
                         column: x => x.LabelId,
                         principalTable: "Labels",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(

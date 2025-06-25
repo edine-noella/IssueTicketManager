@@ -207,9 +207,7 @@ namespace IssueTicketManager.API.Migrations
 
                     b.HasOne("IssueTicketManager.API.Models.Label", "Label")
                         .WithMany("IssueLabels")
-                        .HasForeignKey("LabelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("LabelId");
 
                     b.Navigation("Issue");
 

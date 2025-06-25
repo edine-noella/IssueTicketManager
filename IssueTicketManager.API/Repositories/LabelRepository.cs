@@ -1,6 +1,7 @@
 using IssueTicketManager.API.Data;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace IssueTicketManager.API.Repositories;
 
@@ -19,6 +20,16 @@ public class LabelRepository : ILabelRepository
         await _context.Labels.AddAsync(label);
         await _context.SaveChangesAsync();
         return label;
+    }
+    
+    public async Task<Label?> GetLabelByIdAsync(int id)
+    {
+        return await _context.Labels.FindAsync(id);
+    }
+
+    public async Task<IEnumerable<Label>> GetAllLabelsAsync()
+    {
+        return await _context.Labels.ToListAsync();
     }
     
 }
