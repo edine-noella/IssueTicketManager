@@ -19,6 +19,15 @@ public class LabelsController : ControllerBase
     public async Task<ActionResult<Label>> Create(Label label)
     {
         var createdLabel = await _repository.CreateLabelAsync(label);
-        return CreatedAtAction(nameof(Get), new { id = createdLabel.Id }, createdLabel);
+        return CreatedAtAction(nameof(GetById), new { id = createdLabel.Id }, createdLabel);
     }
+    
+    [HttpGet("{id}")]
+    public async Task<ActionResult<Label>> GetById(int id) 
+    {
+        var label = await _repository.GetLabelByIdAsync(id);
+        return label != null ? Ok(label) : NotFound();
+    }
+    
+    
 }
