@@ -1,6 +1,6 @@
 using IssueTicketManager.API.Models;
 
-namespace IssueTicketManager.API.Repositories;
+namespace IssueTicketManager.API.Repositories.Interfaces;
 
 public interface IUserRepository
 {

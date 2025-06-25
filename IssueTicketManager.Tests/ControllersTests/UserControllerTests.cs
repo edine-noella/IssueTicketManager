@@ -2,6 +2,7 @@ using FluentAssertions;
 using IssueTicketManager.API.Controllers;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories;
+using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
