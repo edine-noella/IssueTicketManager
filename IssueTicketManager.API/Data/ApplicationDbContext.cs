@@ -21,9 +21,22 @@ namespace IssueTicketManager.API.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // this creates a join table with composite primary keys(issueId and LabelId)
+            modelBuilder.Entity<ModelsLabel>(entity =>
+            {
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.Color);
+        
+                // This is the critical configuration
+                entity.HasMany(l => l.IssueLabels)
+                    .WithOne(il => il.Label)
+                    .HasForeignKey(il => il.LabelId)
+                    .IsRequired(false); // This makes the relationship optional
+            });
+
+            // Configure the join table
             modelBuilder.Entity<IssueLabel>()
                 .HasKey(il => new { il.IssueId, il.LabelId });
-                
+            
             modelBuilder.Entity<IssueLabel>()
                 .HasOne(il => il.Issue)
                 .WithMany(i => i.IssueLabels)

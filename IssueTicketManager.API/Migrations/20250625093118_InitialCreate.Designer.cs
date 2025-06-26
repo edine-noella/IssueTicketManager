@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IssueTicketManager.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250622194353_InitialCreate")]
+    [Migration("20250625093118_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -210,9 +210,7 @@ namespace IssueTicketManager.API.Migrations
 
                     b.HasOne("IssueTicketManager.API.Models.Label", "Label")
                         .WithMany("IssueLabels")
-                        .HasForeignKey("LabelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("LabelId");
 
                     b.Navigation("Issue");
 

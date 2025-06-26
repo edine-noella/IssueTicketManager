@@ -20,6 +20,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IIssueRepository, IssueRepository>();
+builder.Services.AddScoped<ILabelRepository, LabelRepository>();
+
 
 // Add Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
