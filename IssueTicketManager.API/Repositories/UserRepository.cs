@@ -20,34 +20,19 @@ public class UserRepository : IUserRepository
         await _context.SaveChangesAsync();
     }
     
-    public async Task UpdateUser(User user, int id)
+    public async Task UpdateUser(User user)
     {
-        var userToUpdate = await _context.Users.FindAsync(id);
-        if (userToUpdate == null)
-        {
-            throw new KeyNotFoundException("User not found");
-        }
+        var userToUpdate = await _context.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
         userToUpdate.Name = user.Name;
         userToUpdate.Email = user.Email;
         
         await _context.SaveChangesAsync();
     }
 
-    public async Task<User> GetUserById(int id)
-    {
-        var user = await _context.Users.FindAsync(id);
-        if (user == null)
-        {
-            throw new KeyNotFoundException("User not found");
-        }
-        return user;
-    }
-
     public async Task<List<User>> GetUsers()
     {
         return await _context.Users.ToListAsync();
     }
-    
     
     public async Task<User?> GetUserByEmail(string email)
     {

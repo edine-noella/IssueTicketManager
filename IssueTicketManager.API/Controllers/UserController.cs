@@ -1,3 +1,4 @@
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
@@ -24,19 +25,23 @@ public class UserController : ControllerBase
          return BadRequest(ModelState);
       }
 
-      var existingUserWithSameEmail = await _userRepository.GetUserByEmail(user.Email);
-      if (existingUserWithSameEmail != null)
+      try
       {
-         return Conflict(new{ message ="User with this email already exists." });
+         var existingUser = await _userRepository.GetUserByEmail(user.Email);
+         if(existingUser != null) throw new Microsoft.EntityFrameworkCore.DbUpdateException();
+         
+         await _userRepository.CreateUser(user);
       }
-      await _userRepository.CreateUser(user);
-
+      catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
+      {
+         return Conflict(e.Message);
+      }
       
-      return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
+      return CreatedAtAction(nameof(GetUserByEmail), new { id = user.Id }, user);
    }
 
-   [HttpPut("{id}")]
-   public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
+   [HttpPut("{email}")]
+   public async Task<IActionResult> UpdateUser( string email, UpdateUserDto user)
    {
       if (!ModelState.IsValid)
       {
@@ -45,20 +50,22 @@ public class UserController : ControllerBase
 
       try
       {
-         var userToUpdate = await _userRepository.GetUserById(id);
-         var duplicateUserEmail = await _userRepository.GetUserByEmail(user.Email);
-         if (duplicateUserEmail != null && duplicateUserEmail.Id != id)
-         {
-            return Conflict(new { message = "User with email already exists." });
-         }
-
-         await _userRepository.UpdateUser(user, id);
+         var existingUser = await _userRepository.GetUserByEmail(email);
+         if(existingUser == null) throw new KeyNotFoundException();
+         existingUser.Name = user.Name;
+         existingUser.Email = user.Email;
+         
+         await _userRepository.UpdateUser(existingUser);
          return NoContent();
 
       }
       catch (KeyNotFoundException)
       {
-         return NotFound(new {message = "User not found."});
+         return NotFound(new { message = "User not found." });
+      }
+      catch(Microsoft.EntityFrameworkCore.DbUpdateException)
+      {
+         return Conflict(new { message = "User with email already exists." });
       }
      
    }
@@ -71,9 +78,9 @@ public class UserController : ControllerBase
       return Ok(users);
    }
    
-   [HttpGet("{id}")]
-   public async Task<ActionResult<User>> GetUserById(int id) {
-      var user = await _userRepository.GetUserById(id);
+   [HttpGet("{email}")]
+   public async Task<ActionResult<User>> GetUserByEmail(string email) {
+      var user = await _userRepository.GetUserByEmail(email);
       return Ok(user);
    }
    
