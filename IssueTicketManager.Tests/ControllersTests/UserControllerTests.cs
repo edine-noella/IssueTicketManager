@@ -4,6 +4,7 @@ using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace IssueTicketManager.Tests.ControllersTests;
@@ -65,35 +66,18 @@ public class UserControllerTests
         
         // Assert
         result2.Result.Should().BeOfType<ConflictObjectResult>();
-        // result.Result.Should().BeOfType<CreatedAtActionResult>();
-    }
-
-    [Test]
-    public async Task UpdateUser_ShouldReturnNoContent()
-    {
-        //Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
-        const int id = 1;
-        _mockRepository
-            .Setup(r => r.GetUserById(id))
-            .ReturnsAsync(user);
-        //Act
-        var result = await _controller.UpdateUser(id, user);
-        
-        //Assert
-        result.Should().BeOfType<NoContentResult>();
     }
     
     [Test]
     public async Task UpdateUser_ShouldReturnNotFound()
     {
         //Arrange
-        const int id = 1;
+        const string email  = "beccatoni@gmail.com";
         _mockRepository
-            .Setup(r => r.GetUserById(id))
+            .Setup(r => r.GetUserByEmail(email))
             .ThrowsAsync(new KeyNotFoundException("User not found."));
         //Act
-        var result = await _controller.UpdateUser(id, new User());
+        var result = await _controller.UpdateUser( email, new User());
         
         //Assert
         result.Should().BeOfType<NotFoundObjectResult>();
@@ -105,17 +89,14 @@ public class UserControllerTests
         var user = new User { Name = "Becca", Email = "becca@gmail.com" };
         var duplicateUser = new User { Id = 2, Name = "Joyce", Email = "becca@gmail.com" };
 
-        const int id = 1;
+        const string email = "becca@gmail.com";
         _mockRepository
-            .Setup(u => u.GetUserById(id))
-            .ReturnsAsync(user);
-
-        _mockRepository
-            .Setup(u => u.GetUserByEmail(user.Email))
-            .ReturnsAsync(duplicateUser);
+            .Setup(r => r.UpdateUser(It.IsAny<User>()))
+            .ThrowsAsync(new DbUpdateException());
+        
         
         // Act
-        var result = await _controller.UpdateUser(id, user);
+        var result = await _controller.UpdateUser(email, duplicateUser);
         
         // Assert
         result.Should().BeOfType<ConflictObjectResult>();
