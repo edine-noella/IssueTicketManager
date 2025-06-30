@@ -2,10 +2,8 @@ using FluentAssertions;
 using IssueTicketManager.API.Controllers;
 using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
-using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Moq;
 
 namespace IssueTicketManager.Tests.ControllersTests;
@@ -27,21 +25,36 @@ public class UserControllerTests
     public async Task CreateUser_ReturnsSuccess_andUserObject()
     {
         // Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
+        var userDto = new CreateUserDto { Name = "Becca", Email = "becca@gmail.com" };
+        
+        _mockRepository
+            .Setup(r => r.GetUserByEmail(userDto.Email))
+            .ReturnsAsync((User?)null);
+        
+        _mockRepository
+            .Setup(r=> r.CreateUser(It.IsAny<User>()))
+            .Callback<User>(u => u.Id = 1)
+            .Returns(Task.CompletedTask);
         
         // Act
-        var result = await _controller.CreateUser(user);
+        var result = await _controller.CreateUser(userDto);
         
         // Assert
-        result.Result.Should().BeOfType<CreatedAtActionResult>();
+        var createdResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        var returnedUser = createdResult.Value.Should().BeAssignableTo<User>().Subject;
+        
+        returnedUser.Name.Should().Be(userDto.Name);
+        returnedUser.Email.Should().Be(userDto.Email);
+        returnedUser.Id.Should().Be(1);
     }
+    
     
     [Test]
     public async Task CreateUser_ThrowsBadRequest_ifModelStateIsInvalid()
     {
         // Arrange
         _controller.ModelState.AddModelError("Email", "Email is required");
-        var user = new User { Name = "Becca" };
+        var user = new CreateUserDto() { Name = "Becca" };
         
         // Act
         var result = await _controller.CreateUser(user);
@@ -54,26 +67,23 @@ public class UserControllerTests
     public async Task CreateUser_ReturnsConflictsMessageForDuplicateEmail()
     {
         // Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
-        var duplicateUser = new User { Name = "Joyce", Email = "becca@gmail.com" };
+        var userDto = new CreateUserDto { Name = "Joyce", Email = "becca@gmail.com" };
+        var existingUser = new User { Id = 1, Name = "Becca", Email = "becca@gmail.com" };
 
-        _mockRepository
-            .SetupSequence(r => r.GetUserByEmail("becca@gmail.com"))
-            .ReturnsAsync((User?)null)
-            .ReturnsAsync(user);
-        // Act
-        var result = await _controller.CreateUser(user);
-        var result2 = await _controller.CreateUser(duplicateUser);
-        
-        // Assert
-        result2.Result.Should().BeOfType<ConflictObjectResult>();
+        _mockRepository.Setup(r => r.GetUserByEmail(userDto.Email)).ReturnsAsync(existingUser);
+
+        //Act
+        var result = await _controller.CreateUser(userDto);
+
+        //Assert
+        result.Result.Should().BeOfType<ConflictObjectResult>();
     }
 
     [Test]
-    public async Task UpdateUser_ShouldReturnBadRequst_IfModelStateIsInvalid()
+    public async Task UpdateUser_ShouldReturnBadRequest_IfModelStateIsInvalid()
     {
         //Arrange
-        _controller.ModelState.AddModelError("Emaill", "Required");
+        _controller.ModelState.AddModelError("Email", "Required");
         
         // Act
         var result = await _controller.UpdateUser("rbccm@gmail.com", new UpdateUserDto());
