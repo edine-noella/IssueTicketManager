@@ -18,7 +18,7 @@ public class UserController : ControllerBase
    }
 
    [HttpPost]
-   public async Task<ActionResult<User>> CreateUser([FromBody] User user)
+   public async Task<ActionResult<User>> CreateUser([FromBody] CreateUserDto user)
    {
       if (!ModelState.IsValid)
       {
@@ -29,15 +29,22 @@ public class UserController : ControllerBase
       {
          var existingUser = await _userRepository.GetUserByEmail(user.Email);
          if(existingUser != null) throw new Microsoft.EntityFrameworkCore.DbUpdateException();
+
+         var newUser = new User
+         {
+            Name = user.Name,
+            Email = user.Email
+         };
          
-         await _userRepository.CreateUser(user);
+         await _userRepository.CreateUser(newUser);
+         return CreatedAtAction(nameof(GetUserByEmail), new { id = newUser.Id }, newUser);
+
       }
       catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
       {
          return Conflict(e.Message);
       }
       
-      return CreatedAtAction(nameof(GetUserByEmail), new { id = user.Id }, user);
    }
 
    [HttpPut("{email}")]
