@@ -22,10 +22,7 @@ public class UserRepository : IUserRepository
     
     public async Task UpdateUser(User user)
     {
-        var userToUpdate = await _context.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
-        userToUpdate.Name = user.Name;
-        userToUpdate.Email = user.Email;
-        
+         _context.Users.Update(user);
         await _context.SaveChangesAsync();
     }
 

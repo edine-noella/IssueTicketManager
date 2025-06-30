@@ -47,27 +47,26 @@ public class UserController : ControllerBase
       {
          return BadRequest(ModelState);
       }
+      
+      var existingUser = await _userRepository.GetUserByEmail(email);
+      if(existingUser == null) return NotFound("User not found");
 
-      try
+      // Check if user with new email already exists
+      var userWithNewEmail = await _userRepository.GetUserByEmail(user.Email);
+      if (userWithNewEmail != null && userWithNewEmail.Id != existingUser.Id)
       {
-         var existingUser = await _userRepository.GetUserByEmail(email);
-         if(existingUser == null) throw new KeyNotFoundException();
-         existingUser.Name = user.Name;
-         existingUser.Email = user.Email;
+            return Conflict((new { message = "User with email already exists." }));
+      }
+      existingUser.Name = user.Name;
+      existingUser.Email = user.Email;
          
          await _userRepository.UpdateUser(existingUser);
-         return NoContent();
-
-      }
-      catch (KeyNotFoundException)
-      {
-         return NotFound(new { message = "User not found." });
-      }
-      catch(Microsoft.EntityFrameworkCore.DbUpdateException)
-      {
-         return Conflict(new { message = "User with email already exists." });
-      }
-     
+         return Ok(new
+         {
+            message = "User updated successfully",
+            user = existingUser
+         });
+      
    }
 
    [HttpGet]

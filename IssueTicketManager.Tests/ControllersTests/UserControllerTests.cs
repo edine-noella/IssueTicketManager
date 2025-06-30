@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IssueTicketManager.API.Controllers;
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
@@ -66,6 +67,19 @@ public class UserControllerTests
         
         // Assert
         result2.Result.Should().BeOfType<ConflictObjectResult>();
+    }
+
+    [Test]
+    public async Task UpdateUser_ShouldReturnBadRequst_IfModelStateIsInvalid()
+    {
+        //Arrange
+        _controller.ModelState.AddModelError("Emaill", "Required");
+        
+        // Act
+        var result = await _controller.UpdateUser("rbccm@gmail.com", new UpdateUserDto());
+        
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
     
     [Test]
