@@ -1,5 +1,6 @@
 using FluentAssertions;
 using IssueTicketManager.API.Controllers;
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -24,34 +25,44 @@ public class LabelControllerTests
         public async Task Create_WithValidLabel_ReturnsCreatedAtAction()
         {
             // Arrange
-            var label = new Label { Name = "Bug", Color = "#FF0000" };
-            var createdLabel = new Label { Id = 1, Name = label.Name, Color = label.Color };
-            
-            _mockRepository.Setup(x => x.CreateLabelAsync(It.IsAny<Label>()))
-                .ReturnsAsync(createdLabel);
+            var labelDto = new CreateLabelDto 
+            { 
+                Name = "goodFirstIssue",
+                Color = "#FF0000" 
+            };
+    
+            var expectedLabel = new Label { Id = 1, Name = labelDto.Name, Color = labelDto.Color };
+    
+            _mockRepository.Setup(x => x.CreateLabelAsync(It.Is<Label>(l => 
+                    l.Name == labelDto.Name && 
+                    l.Color == labelDto.Color))).ReturnsAsync(expectedLabel);
 
             // Act
-            var result = await _controller.Create(label);
+            var result = await _controller.Create(labelDto);
 
             // Assert
-            result.Result.Should().BeOfType<CreatedAtActionResult>()
-                .Which.ActionName.Should().Be(nameof(_controller.GetLabelById));
+            var createdAtActionResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+            createdAtActionResult.ActionName.Should().Be(nameof(_controller.GetLabelById));
+            createdAtActionResult.Value.Should().BeEquivalentTo(expectedLabel);
+    
+            _mockRepository.Verify(x => x.CreateLabelAsync(It.Is<Label>(l => 
+                    l.Name == labelDto.Name && l.Color == labelDto.Color)), Times.Once);
             
-            result.Result.Should().BeOfType<CreatedAtActionResult>()
-                .Which.Value.Should().BeEquivalentTo(createdLabel);
-            
-            _mockRepository.Verify(x => x.CreateLabelAsync(label), Times.Once);
         }
 
         [Test]
         public async Task Create_WithInvalidLabel_ReturnsValidationProblem()
         {
             // Arrange
-            var invalidLabel = new Label { Name = null, Color = "#FF0000" };
+            var invalidLabelDto = new CreateLabelDto 
+            { 
+                Name = null,
+                Color = "#FF0000" 
+            };
             _controller.ModelState.AddModelError("Name", "Required");
 
             // Act
-            var result = await _controller.Create(invalidLabel);
+            var result = await _controller.Create(invalidLabelDto);
 
             // Assert
             var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
@@ -128,5 +139,54 @@ public class LabelControllerTests
             
             result.Result.Should().BeOfType<OkObjectResult>()
                 .Which.Value.As<List<Label>>().Should().BeEmpty();
+        }
+        
+        [Test]
+        public async Task Create_WithDuplicateLabelName_ReturnsConflict()
+        {
+            // Arrange
+            var duplicateName = "existingLabel";
+            var labelDto = new CreateLabelDto 
+            { 
+                Name = duplicateName,
+                Color = "#FF0000"
+            };
+
+            _mockRepository.Setup(x => x.CreateLabelAsync(It.Is<Label>(l => l.Name == duplicateName)))
+                .ThrowsAsync(new InvalidOperationException("Label name already exists"));
+
+            // Act
+            var result = await _controller.Create(labelDto);
+
+            // Assert
+            result.Result.Should().BeOfType<ConflictObjectResult>();
+            var conflictResult = result.Result as ConflictObjectResult;
+            conflictResult.Value.Should().BeEquivalentTo(new { error = "Label name already exists" });
+    
+            _mockRepository.Verify(x => x.CreateLabelAsync(It.Is<Label>(l => 
+                    l.Name == duplicateName && 
+                    l.Color == labelDto.Color)), 
+                Times.Once);
+        }
+        
+        [Test]
+        public async Task Create_WithInvalidColor_ReturnsValidationProblem()
+        {
+            // Arrange
+            var invalidLabel = new CreateLabelDto 
+            { 
+                Name = "validName",
+                Color = "not-a-color" 
+            };
+
+            _controller.ModelState.AddModelError("Color", "Color must be a valid hex color (e.g., #FF0000 or #F00)");
+
+            // Act
+            var result = await _controller.Create(invalidLabel);
+
+            // Assert
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.Value.Should().BeOfType<ValidationProblemDetails>()
+                .Which.Errors.Should().ContainKey("Color");
         }
 }

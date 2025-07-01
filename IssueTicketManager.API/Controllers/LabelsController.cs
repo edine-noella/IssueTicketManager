@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -16,17 +18,30 @@ public class LabelsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Label>> Create(Label label)
+    public async Task<ActionResult<Label>> Create(CreateLabelDto dto)
     {
-        ModelState.Remove("IssueLabels");
-    
         if (!ModelState.IsValid)
         {
-            return ValidationProblem(ModelState);
+            return ValidationProblem(ModelState); 
         }
 
-        var createdLabel = await _repository.CreateLabelAsync(label);
-        return CreatedAtAction(nameof(GetLabelById), new { id = createdLabel.Id }, createdLabel);
+        try
+        {
+            var label = new Label
+            {
+                Name = dto.Name,
+                Color = dto.Color,
+            };
+
+
+            var createdLabel = await _repository.CreateLabelAsync(label);
+            return CreatedAtAction(nameof(GetLabelById), new { id = createdLabel.Id }, createdLabel);
+
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = ex.Message });
+        }
     }
     
     [HttpGet("{id}")]

@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IssueTicketManager.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250625093118_InitialCreate")]
+    [Migration("20250701085611_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -131,6 +131,9 @@ namespace IssueTicketManager.API.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
 
                     b.ToTable("Labels");
                 });

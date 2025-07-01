@@ -129,6 +129,9 @@ namespace IssueTicketManager.API.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("Labels");
                 });
 

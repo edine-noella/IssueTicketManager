@@ -20,6 +20,11 @@ namespace IssueTicketManager.API.Data
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
+            modelBuilder.Entity<ModelsLabel>()
+                .HasIndex(l => l.Name)
+                .IsUnique();
+                
             // this creates a join table with composite primary keys(issueId and LabelId)
             modelBuilder.Entity<ModelsLabel>(entity =>
             {
