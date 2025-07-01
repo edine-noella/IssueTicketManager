@@ -95,6 +95,23 @@ namespace IssueTicketManager.API.Controllers
                 return StatusCode(500, $"Error assigning issue: {ex.Message}");
             }
         }
+
+
+        [HttpPost("{id}/label")]
+        public async Task<IActionResult> AddLabelToIssue(int id, [FromBody] AddLabelToIssueDto dto)
+        {
+            // Check if that issue exists
+            var success = await _repository.AddLabelToIssueAsync(id, dto.LabelId);
+
+            if (success == LabelAddResult.IssueNotFound) return NotFound($"Issue with id {id} not found");
+
+            if (success == LabelAddResult.LabelNotFound) return NotFound($"Label with id {dto.LabelId} not found");
+
+            if (success == LabelAddResult.AlreadyAssigned)
+                return BadRequest("Label is already assigned to this issue.");
+
+            return NoContent();
+        }
         
     }
 }

@@ -60,4 +60,26 @@ public class IssueRepository : IIssueRepository
     {
         return await _context.Issues.AnyAsync(i => i.Id == id);
     }
+
+    public async Task<LabelAddResult> AddLabelToIssueAsync(int issueId, int labelId)
+    {
+        var issueExists = await _context.Issues.AnyAsync(i => i.Id == issueId);
+        if (!issueExists) return LabelAddResult.IssueNotFound;
+        
+        var labelExists = await _context.Labels.AnyAsync(l => l.Id == labelId);
+        if (!labelExists) return LabelAddResult.LabelNotFound;
+        
+        var alreadyAssigned = await _context.IssueLabels.AnyAsync(il => il.IssueId == issueId && il.LabelId == labelId);
+        if (alreadyAssigned) return LabelAddResult.AlreadyAssigned;
+
+        var issueLabel = new IssueLabel
+        {
+            IssueId = issueId,
+            LabelId = labelId
+        };
+        
+        await _context.IssueLabels.AddAsync(issueLabel);
+        await _context.SaveChangesAsync();
+        return LabelAddResult.Success;
+    }
 }
