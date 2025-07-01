@@ -49,8 +49,9 @@ namespace IssueTicketManager.API.Controllers
                     .ToList();
             }
 
-            await _repository.UpdateIssueAsync(issue);
-            return NoContent();
+            var updatedIssue = await _repository.UpdateIssueAsync(issue);
+            return Ok(updatedIssue);
+           
         }
 
         [HttpGet("{id}")]

@@ -26,11 +26,13 @@ public class IssueRepository : IIssueRepository
         return issue;
     }
 
-    public async Task UpdateIssueAsync(Issue issue)
+    public async Task<Issue> UpdateIssueAsync(Issue issue)
     {
         issue.UpdatedAt = DateTime.UtcNow;
-        _context.Issues.Update(issue);
+        
+         _context.Issues.Update(issue);
         await _context.SaveChangesAsync();
+        return issue;
     }
 
     public async Task<Issue?> GetIssueByIdAsync(int id)

@@ -3,6 +3,7 @@ using IssueTicketManager.API.Controllers;
 using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -104,7 +105,7 @@ public class IssueControllerTests
         }
 
         [Test]
-        public async Task Update_WithExistingIdAndValidDto_ReturnsNoContentResult()
+        public async Task Update_WithExistingIdAndValidDto_ReturnsOkObjectResult()
         {
             // Arrange
             var issueId = 1;
@@ -117,7 +118,7 @@ public class IssueControllerTests
             var result = await _controller.Update(issueId, dto);
 
             // Assert
-            result.Should().BeOfType<NoContentResult>();
+            result.Should().BeOfType<OkObjectResult>();
             _mockRepository.Verify(x => x.UpdateIssueAsync(existingIssue), Times.Once);
         }
 

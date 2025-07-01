@@ -17,6 +17,11 @@ public class LabelRepository : ILabelRepository
 
     public async Task<Label> CreateLabelAsync(Label label)
     {
+        if (await _context.Labels.AnyAsync(x => x.Name == label.Name))
+        {
+            throw new InvalidOperationException($"A label with name '{label.Name}' already exists.");
+        }
+        
         await _context.Labels.AddAsync(label);
         await _context.SaveChangesAsync();
         return label;
@@ -31,5 +36,5 @@ public class LabelRepository : ILabelRepository
     {
         return await _context.Labels.ToListAsync();
     }
-    
+  
 }
