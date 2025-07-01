@@ -112,6 +112,42 @@ namespace IssueTicketManager.API.Controllers
 
             return NoContent();
         }
+
+
+        [HttpPost("{id}/comments")]
+        public async Task<ActionResult<Comment>> AddCommentToIssue(int id, [FromBody] AddCommentDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            
+            //check if an issue exists
+            var issueExists = await _repository.IssueExistsAsync(id);
+            if (!issueExists) return NotFound($"Issue with ID {id} not found.");
+            
+            // check if a user exists
+            var userExists = await _userRepository.UserExists(dto.UserId);
+            if (!userExists) return NotFound($"User with ID {dto.UserId} not found.");
+            
+            // Create and save comment
+            var comment = new Comment
+            {
+                Text = dto.Text,
+                UserId = dto.UserId,
+                IssueId = id
+            };
+
+            var createdComment = await _repository.AddCommentAsync(comment);
+            createdComment = await _repository.GetCommentWithDetailsAsync(createdComment.Id);
+
+            return CreatedAtAction(nameof(GetComment), new { id = createdComment.Id }, createdComment);
+
+        }
+
+        [HttpGet("comment/{id}")]
+        public async Task<ActionResult<Comment>> GetComment(int id)
+        {
+            var comment = await _repository.GetCommentWithDetailsAsync(id);
+            return comment != null ? Ok(comment) : NotFound();
+        }
         
     }
 }

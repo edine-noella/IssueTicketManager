@@ -11,6 +11,11 @@ public interface IIssueRepository
     Task<bool> IssueExistsAsync(int id);
     
     Task<LabelAddResult> AddLabelToIssueAsync(int issueId, int labelId);
+    
+    Task<Comment> AddCommentAsync(Comment comment);
+    Task<Comment?> GetCommentWithDetailsAsync(int id);
+
+
 }
 
 public enum LabelAddResult

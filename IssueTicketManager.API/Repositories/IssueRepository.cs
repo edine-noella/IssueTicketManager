@@ -82,4 +82,21 @@ public class IssueRepository : IIssueRepository
         await _context.SaveChangesAsync();
         return LabelAddResult.Success;
     }
+
+    public async Task<Comment> AddCommentAsync(Comment comment)
+    {
+        comment.CreatedAt = DateTime.UtcNow;
+        await _context.Comments.AddAsync(comment);
+        await _context.SaveChangesAsync();
+        return comment;
+    }
+
+    public async Task<Comment?> GetCommentWithDetailsAsync(int id)
+    {
+        return await _context.Comments
+            .Include(c => c.User)
+            .Include(c => c.Issue)
+            .FirstOrDefaultAsync(c => c.Id == id);
+            
+    }
 }
