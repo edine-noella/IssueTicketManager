@@ -1,5 +1,5 @@
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
-using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,50 +17,56 @@ public class UserController : ControllerBase
    }
 
    [HttpPost]
-   public async Task<ActionResult<User>> CreateUser([FromBody] User user)
+   public async Task<ActionResult<User>> CreateUser([FromBody] CreateUserDto user)
    {
       if (!ModelState.IsValid)
       {
          return BadRequest(ModelState);
       }
+      
+      var existingUser = await _userRepository.GetUserByEmail(user.Email);
+      if(existingUser != null)  return Conflict((new { message = "User with email already exists." }));
 
-      var existingUserWithSameEmail = await _userRepository.GetUserByEmail(user.Email);
-      if (existingUserWithSameEmail != null)
-      {
-         return Conflict(new{ message ="User with this email already exists." });
-      }
-      await _userRepository.CreateUser(user);
+      var newUser = new User
+         {
+            Name = user.Name,
+            Email = user.Email
+         };
+         
+         await _userRepository.CreateUser(newUser);
+         return CreatedAtAction(nameof(GetUserByEmail), new { email = newUser.Email }, newUser);
 
       
-      return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
+     
    }
 
-   [HttpPut("{id}")]
-   public async Task<IActionResult> UpdateUser(int id, [FromBody] User user)
+   [HttpPut("{email}")]
+   public async Task<IActionResult> UpdateUser( string email, UpdateUserDto user)
    {
       if (!ModelState.IsValid)
       {
          return BadRequest(ModelState);
       }
+      
+      var existingUser = await _userRepository.GetUserByEmail(email);
+      if(existingUser == null) return NotFound("User not found");
 
-      try
+      // Check if user with new email already exists
+      var userWithNewEmail = await _userRepository.GetUserByEmail(user.Email);
+      if (userWithNewEmail != null && userWithNewEmail.Id != existingUser.Id)
       {
-         var userToUpdate = await _userRepository.GetUserById(id);
-         var duplicateUserEmail = await _userRepository.GetUserByEmail(user.Email);
-         if (duplicateUserEmail != null && duplicateUserEmail.Id != id)
+            return Conflict((new { message = "User with email already exists." }));
+      }
+      existingUser.Name = user.Name;
+      existingUser.Email = user.Email;
+         
+         await _userRepository.UpdateUser(existingUser);
+         return Ok(new
          {
-            return Conflict(new { message = "User with email already exists." });
-         }
-
-         await _userRepository.UpdateUser(user, id);
-         return NoContent();
-
-      }
-      catch (KeyNotFoundException)
-      {
-         return NotFound(new {message = "User not found."});
-      }
-     
+            message = "User updated successfully",
+            user = existingUser
+         });
+      
    }
 
    [HttpGet]
@@ -71,9 +77,9 @@ public class UserController : ControllerBase
       return Ok(users);
    }
    
-   [HttpGet("{id}")]
-   public async Task<ActionResult<User>> GetUserById(int id) {
-      var user = await _userRepository.GetUserById(id);
+   [HttpGet("{email}")]
+   public async Task<ActionResult<User>> GetUserByEmail(string email) {
+      var user = await _userRepository.GetUserByEmail(email);
       return Ok(user);
    }
    

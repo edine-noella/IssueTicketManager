@@ -1,7 +1,7 @@
 using FluentAssertions;
 using IssueTicketManager.API.Controllers;
+using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
-using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -25,21 +25,36 @@ public class UserControllerTests
     public async Task CreateUser_ReturnsSuccess_andUserObject()
     {
         // Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
+        var userDto = new CreateUserDto { Name = "Becca", Email = "becca@gmail.com" };
+        
+        _mockRepository
+            .Setup(r => r.GetUserByEmail(userDto.Email))
+            .ReturnsAsync((User?)null);
+        
+        _mockRepository
+            .Setup(r=> r.CreateUser(It.IsAny<User>()))
+            .Callback<User>(u => u.Id = 1)
+            .Returns(Task.CompletedTask);
         
         // Act
-        var result = await _controller.CreateUser(user);
+        var result = await _controller.CreateUser(userDto);
         
         // Assert
-        result.Result.Should().BeOfType<CreatedAtActionResult>();
+        var createdResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
+        var returnedUser = createdResult.Value.Should().BeAssignableTo<User>().Subject;
+        
+        returnedUser.Name.Should().Be(userDto.Name);
+        returnedUser.Email.Should().Be(userDto.Email);
+        returnedUser.Id.Should().Be(1);
     }
+    
     
     [Test]
     public async Task CreateUser_ThrowsBadRequest_ifModelStateIsInvalid()
     {
         // Arrange
         _controller.ModelState.AddModelError("Email", "Email is required");
-        var user = new User { Name = "Becca" };
+        var user = new CreateUserDto() { Name = "Becca" };
         
         // Act
         var result = await _controller.CreateUser(user);
@@ -52,48 +67,41 @@ public class UserControllerTests
     public async Task CreateUser_ReturnsConflictsMessageForDuplicateEmail()
     {
         // Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
-        var duplicateUser = new User { Name = "Joyce", Email = "becca@gmail.com" };
+        var userDto = new CreateUserDto { Name = "Joyce", Email = "becca@gmail.com" };
+        var existingUser = new User { Id = 1, Name = "Becca", Email = "becca@gmail.com" };
 
-        _mockRepository
-            .SetupSequence(r => r.GetUserByEmail("becca@gmail.com"))
-            .ReturnsAsync((User?)null)
-            .ReturnsAsync(user);
-        // Act
-        var result = await _controller.CreateUser(user);
-        var result2 = await _controller.CreateUser(duplicateUser);
-        
-        // Assert
-        result2.Result.Should().BeOfType<ConflictObjectResult>();
-        // result.Result.Should().BeOfType<CreatedAtActionResult>();
+        _mockRepository.Setup(r => r.GetUserByEmail(userDto.Email)).ReturnsAsync(existingUser);
+
+        //Act
+        var result = await _controller.CreateUser(userDto);
+
+        //Assert
+        result.Result.Should().BeOfType<ConflictObjectResult>();
     }
 
     [Test]
-    public async Task UpdateUser_ShouldReturnNoContent()
+    public async Task UpdateUser_ShouldReturnBadRequest_IfModelStateIsInvalid()
     {
         //Arrange
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
-        const int id = 1;
-        _mockRepository
-            .Setup(r => r.GetUserById(id))
-            .ReturnsAsync(user);
-        //Act
-        var result = await _controller.UpdateUser(id, user);
+        _controller.ModelState.AddModelError("Email", "Required");
         
-        //Assert
-        result.Should().BeOfType<NoContentResult>();
+        // Act
+        var result = await _controller.UpdateUser("rbccm@gmail.com", new UpdateUserDto());
+        
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
     
     [Test]
-    public async Task UpdateUser_ShouldReturnNotFound()
+    public async Task UpdateUser_ShouldReturnNotFound_WhenUserDoesNotExist()
     {
         //Arrange
-        const int id = 1;
+        const string email  = "beccatoni@gmail.com";
         _mockRepository
-            .Setup(r => r.GetUserById(id))
-            .ThrowsAsync(new KeyNotFoundException("User not found."));
+            .Setup(r => r.GetUserByEmail(email))
+            .ReturnsAsync((User?)null);
         //Act
-        var result = await _controller.UpdateUser(id, new User());
+        var result = await _controller.UpdateUser( email, new UpdateUserDto());
         
         //Assert
         result.Should().BeOfType<NotFoundObjectResult>();
@@ -102,23 +110,76 @@ public class UserControllerTests
     [Test]
     public async Task UpdateUser_ShouldReturnConflict_ForDuplicateEmail()
     {
-        var user = new User { Name = "Becca", Email = "becca@gmail.com" };
-        var duplicateUser = new User { Id = 2, Name = "Joyce", Email = "becca@gmail.com" };
+        const string currentEmail = "becca@gmail.com";
+        var updateDto = new UpdateUserDto
+        {
+            Name = "Joyce",
+            Email = "joyce@gmail.com" // Trying to update to a duplicate email
+        };
 
-        const int id = 1;
-        _mockRepository
-            .Setup(u => u.GetUserById(id))
-            .ReturnsAsync(user);
+        // The user to be updated
+        var existingUser = new User
+        {
+            Id = 1,
+            Name = "Becca",
+            Email = currentEmail
+        };
+        
+        // The user with the duplicate email
+        var duplicateUser = new User
+        {
+            Id = 2,
+            Name = "Joyce",
+            Email = "joyce@gmail.com"
+        };
 
         _mockRepository
-            .Setup(u => u.GetUserByEmail(user.Email))
+            .Setup(r => r.GetUserByEmail(currentEmail))
+            .ReturnsAsync(existingUser);
+        _mockRepository
+            .Setup(r => r.GetUserByEmail(updateDto.Email))
             .ReturnsAsync(duplicateUser);
         
+        
         // Act
-        var result = await _controller.UpdateUser(id, user);
+        var result = await _controller.UpdateUser(currentEmail, updateDto);
         
         // Assert
         result.Should().BeOfType<ConflictObjectResult>();
+        var conflictResult = result as ConflictObjectResult;
+        conflictResult?.Value.Should().BeEquivalentTo(new { message = "User with email already exists." });
     }
-   
+
+    [Test]
+    public async Task UpdateUser_ShouldReturnOk_WhenUpdateSucceeds()
+    {
+        // Arrange
+        var email = "mutoni@gmail.com";
+        var updateUserDto = new UpdateUserDto() { Name = "Mutoni", Email = "mumu@gmail.com" };
+
+        var existingUser = new User { Id = 4, Name = "Umutoni", Email = "umutoni@gmail.com" };
+
+        _mockRepository
+            .Setup(r => r.GetUserByEmail(email))
+            .ReturnsAsync(existingUser);
+        
+        _mockRepository
+            .Setup(r => r.GetUserByEmail(updateUserDto.Email))
+            .ReturnsAsync((User?)null);
+
+        _mockRepository
+            .Setup(r => r.UpdateUser(It.IsAny<User>()))
+            .Returns(Task.CompletedTask);
+        // Act
+        var result = await _controller.UpdateUser(email, updateUserDto);
+        
+        // Assert
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var response = okResult.Value!
+            .GetType().GetProperty("message")!
+            .GetValue(okResult.Value, null);
+        response.Should().Be("User updated successfully");
+        result.Should().BeOfType<OkObjectResult>();
+    }
+
 }
