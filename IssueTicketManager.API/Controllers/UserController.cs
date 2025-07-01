@@ -1,6 +1,5 @@
 using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
-using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -24,27 +23,21 @@ public class UserController : ControllerBase
       {
          return BadRequest(ModelState);
       }
+      
+      var existingUser = await _userRepository.GetUserByEmail(user.Email);
+      if(existingUser != null)  return Conflict((new { message = "User with email already exists." }));
 
-      try
-      {
-         var existingUser = await _userRepository.GetUserByEmail(user.Email);
-         if(existingUser != null) throw new Microsoft.EntityFrameworkCore.DbUpdateException();
-
-         var newUser = new User
+      var newUser = new User
          {
             Name = user.Name,
             Email = user.Email
          };
          
          await _userRepository.CreateUser(newUser);
-         return CreatedAtAction(nameof(GetUserByEmail), new { id = newUser.Id }, newUser);
+         return CreatedAtAction(nameof(GetUserByEmail), new { email = newUser.Email }, newUser);
 
-      }
-      catch (Microsoft.EntityFrameworkCore.DbUpdateException e)
-      {
-         return Conflict(e.Message);
-      }
       
+     
    }
 
    [HttpPut("{email}")]
