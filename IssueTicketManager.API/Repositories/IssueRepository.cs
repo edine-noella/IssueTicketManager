@@ -61,16 +61,19 @@ public class IssueRepository : IIssueRepository
         return await _context.Issues.AnyAsync(i => i.Id == id);
     }
 
-    public async Task<LabelAddResult> AddLabelToIssueAsync(int issueId, int labelId)
+    public async Task<(Issue?, LabelAddResult)> AddLabelToIssueAsync(int issueId, int labelId)
     {
-        var issueExists = await _context.Issues.AnyAsync(i => i.Id == issueId);
-        if (!issueExists) return LabelAddResult.IssueNotFound;
+        var issueExists = await _context.Issues
+            .Include(i => i.IssueLabels)
+            .ThenInclude(il => il.Label)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+        if(issueExists == null) return (null, LabelAddResult.IssueNotFound);
         
         var labelExists = await _context.Labels.AnyAsync(l => l.Id == labelId);
-        if (!labelExists) return LabelAddResult.LabelNotFound;
+        if (!labelExists) return (null, LabelAddResult.LabelNotFound);
         
         var alreadyAssigned = await _context.IssueLabels.AnyAsync(il => il.IssueId == issueId && il.LabelId == labelId);
-        if (alreadyAssigned) return LabelAddResult.AlreadyAssigned;
+        if (alreadyAssigned) return (issueExists, LabelAddResult.AlreadyAssigned);
 
         var issueLabel = new IssueLabel
         {
@@ -80,7 +83,11 @@ public class IssueRepository : IIssueRepository
         
         await _context.IssueLabels.AddAsync(issueLabel);
         await _context.SaveChangesAsync();
-        return LabelAddResult.Success;
+        var updatedIssue = await _context.Issues
+            .Include(i => i.IssueLabels)
+            .ThenInclude(il => il.Label)
+            .FirstOrDefaultAsync(i => i.Id == issueId);
+        return (updatedIssue, LabelAddResult.Success);
     }
 
     public async Task<Comment> AddCommentAsync(Comment comment)

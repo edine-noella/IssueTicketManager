@@ -10,7 +10,7 @@ public interface IIssueRepository
     Task<IEnumerable<Issue>> GetAllIssuesAsync();
     Task<bool> IssueExistsAsync(int id);
     
-    Task<LabelAddResult> AddLabelToIssueAsync(int issueId, int labelId);
+    Task<(Issue?, LabelAddResult)> AddLabelToIssueAsync(int issueId, int labelId);
     
     Task<Comment> AddCommentAsync(Comment comment);
     Task<Comment?> GetCommentWithDetailsAsync(int id);

@@ -100,17 +100,26 @@ namespace IssueTicketManager.API.Controllers
         [HttpPost("{id}/label")]
         public async Task<IActionResult> AddLabelToIssue(int id, [FromBody] AddLabelToIssueDto dto)
         {
-            // Check if that issue exists
-            var success = await _repository.AddLabelToIssueAsync(id, dto.LabelId);
+            var (updatedIssue, result) = await _repository.AddLabelToIssueAsync(id, dto.LabelId);
+            
+            switch (result)
+            {
+                case LabelAddResult.IssueNotFound:
+                    return NotFound($"Issue with ID {id} not found.");
 
-            if (success == LabelAddResult.IssueNotFound) return NotFound($"Issue with id {id} not found");
+                case LabelAddResult.LabelNotFound:
+                    return NotFound($"Label with ID {dto.LabelId} not found.");
 
-            if (success == LabelAddResult.LabelNotFound) return NotFound($"Label with id {dto.LabelId} not found");
+                case LabelAddResult.AlreadyAssigned:
+                    return BadRequest("The label is already assigned to this issue.");
 
-            if (success == LabelAddResult.AlreadyAssigned)
-                return BadRequest("Label is already assigned to this issue.");
+                case LabelAddResult.Success:
+                    return Ok(updatedIssue); 
 
-            return NoContent();
+                default:
+                    return StatusCode(500, "An unknown error occurred.");
+            }
+
         }
 
 
