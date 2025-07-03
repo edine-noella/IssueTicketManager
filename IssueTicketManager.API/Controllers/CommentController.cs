@@ -14,13 +14,15 @@ public class CommentController: ControllerBase
     private readonly IIssueRepository _issueRepository;
     private readonly IUserRepository _userRepository;
 
-    public CommentController(ICommentRepository repository)
+    public CommentController(ICommentRepository repository, IIssueRepository issueRepository, IUserRepository userRepository)
     {
         _repository = repository;
+        _issueRepository = issueRepository;
+        _userRepository = userRepository;
     }
 
     [HttpPost]
-    public async Task<IActionResult> AddComment(int issueId, [FromBody] AddCommentDto dto)
+    public async Task<IActionResult> AddComment([FromBody] AddCommentDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -35,7 +37,7 @@ public class CommentController: ControllerBase
         {
             Text = dto.Text,
             UserId = dto.UserId,
-            IssueId = issueId
+            IssueId = dto.IssueId
         };
 
         var comment = await _repository.AddCommentAsync(newComment);

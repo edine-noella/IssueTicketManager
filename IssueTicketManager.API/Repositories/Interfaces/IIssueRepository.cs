@@ -9,13 +9,7 @@ public interface IIssueRepository
     Task<Issue?> GetIssueByIdAsync(int id);
     Task<IEnumerable<Issue>> GetAllIssuesAsync();
     Task<bool> IssueExistsAsync(int id);
-    
     Task<(Issue?, LabelAddResult)> AddLabelToIssueAsync(int issueId, int labelId);
-    
-    Task<Comment> AddCommentAsync(Comment comment);
-    Task<Comment?> GetCommentWithDetailsAsync(int id);
-
-
 }
 
 public enum LabelAddResult
