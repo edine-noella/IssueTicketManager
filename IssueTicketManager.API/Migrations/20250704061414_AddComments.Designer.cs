@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace IssueTicketManager.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250701195513_AddLabelIssueTable")]
-    partial class AddLabelIssueTable
+    [Migration("20250704061414_AddComments")]
+    partial class AddComments
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
