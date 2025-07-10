@@ -21,6 +21,7 @@ public class IssueControllerTests
         public void Setup()
         {
             _mockIssueRepository = new Mock<IIssueRepository>();
+            _mockUserRepository = new Mock<IUserRepository>();
             _controller = new IssuesController(_mockIssueRepository.Object,  _mockUserRepository.Object);
         }
 
