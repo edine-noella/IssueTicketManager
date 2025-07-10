@@ -99,4 +99,134 @@ public class CommentControllerTests
         Assert.That(createdResult.ActionName, Is.EqualTo("GetComment"));
         Assert.That(createdResult.Value, Is.EqualTo(createdComment));
     }
+
+    [Test]
+    public async Task? GetComment_ShouldReturnNotFound_WhenCommentDoesNttExist()
+    {
+        // Arrange
+        const int nonExistingId = 999;
+        _commentRepositoryMock
+            .Setup(r => r.GetCommentWithDetailsAsync(nonExistingId))
+            .ReturnsAsync((Comment?)null);
+        
+        // Act
+        var result = await _commentController.GetComment(nonExistingId);
+        
+        // Assert
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
+    }
+    
+    [Test]
+    public async Task GetComment_ShouldReturnOkResult_WhenCommentExists()
+    {
+        // Arrange
+        const int existingId = 1;
+        
+        var existingComment = new Comment
+        {
+            Id = existingId,
+            Text = "Test comment 1",
+            UserId = 1,
+            IssueId = 101
+        };
+
+        _commentRepositoryMock
+            .Setup(r => r.GetCommentWithDetailsAsync(existingId))
+            .ReturnsAsync(existingComment);
+        
+        // Act
+        var result = await _commentController.GetComment(existingId);
+        
+        // Assert
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var okResult = (OkObjectResult)result;
+        Assert.That(okResult.Value, Is.EqualTo(existingComment));
+    }
+
+    [Test]
+    public async Task GetAllComments_ShouldReturnWithEmptyList_WhenNoCommentsExist()
+    {
+        // Arrange
+        _commentRepositoryMock.Setup(r => r.GetAllCommentsAsync()).ReturnsAsync(new List<Comment>());
+        
+        // Act
+        var result = await _commentController.GetAllComments();
+        
+        // Assert
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var okResult = (OkObjectResult)result;
+        Assert.That(okResult.Value, Is.EqualTo(new List<Comment>()));
+    }
+    
+    [Test]
+    public async Task GetAllComments_ShouldReturnOkWithComments_WhenCommentsExist()
+    {
+        // Arrange
+        var expectedComments = new List<Comment>
+        {
+            new Comment { Id = 1, Text = "Comment 1", UserId = 1, IssueId = 1 },
+            new Comment { Id = 2, Text = "Comment 2", UserId = 2, IssueId = 1 }
+        };
+
+        _commentRepositoryMock.Setup(r => r.GetAllCommentsAsync())
+            .ReturnsAsync(expectedComments);
+
+        // Act
+        var result = await _commentController.GetAllComments();
+
+        // Assert
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var okResult = result as OkObjectResult;
+        Assert.That(okResult, Is.Not.Null);
+        Assert.That(okResult.Value, Is.EqualTo(expectedComments));
+    }
+    
+    [Test]
+    public async Task AddComment_ShouldHandleRepositoryException_WhenAddFails()
+    {
+        // Arrange
+        var dto = new AddCommentDto
+        {
+            Text = "Test comment",
+            UserId = 1,
+            IssueId = 1
+        };
+
+        _issueRepositoryMock.Setup(repo => repo.IssueExistsAsync(It.IsAny<int>()))
+            .ReturnsAsync(true);
+
+        _userRepositoryMock.Setup(repo => repo.UserExists(It.IsAny<int>()))
+            .ReturnsAsync(true);
+
+        _commentRepositoryMock
+            .Setup(r => r.AddCommentAsync(It.IsAny<Comment>()))
+            .ThrowsAsync(new Exception("Database error"));
+
+        // Act & Assert
+        Assert.ThrowsAsync<Exception>(() => _commentController.AddComment(dto));
+    }
+
+    [Test]
+    public async Task GetComment_ShouldHandleRepositoryException_WhenGetFails()
+    {
+        // Arrange
+        int commentId = 1;
+        _commentRepositoryMock.Setup(r => r.GetCommentWithDetailsAsync(commentId))
+            .ThrowsAsync(new Exception("Database error"));
+
+        // Act & Assert
+        Assert.ThrowsAsync<Exception>(() => _commentController.GetComment(commentId));
+    }
+
+    [Test]
+    public async Task GetAllComments_ShouldHandleRepositoryException_WhenGetAllFails()
+    {
+        // Arrange
+        _commentRepositoryMock.Setup(r => r.GetAllCommentsAsync())
+            .ThrowsAsync(new Exception("Database error"));
+
+        // Act & Assert
+        Assert.ThrowsAsync<Exception>(() => _commentController.GetAllComments());
+    }
+    
 }
