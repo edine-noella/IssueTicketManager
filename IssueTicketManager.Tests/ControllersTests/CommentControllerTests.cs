@@ -80,6 +80,10 @@ public class CommentControllerTests
             .Setup(r => r.AddCommentAsync(It.IsAny<Comment>()))
             .ReturnsAsync(createdComment);
         
+        _commentRepositoryMock
+            .Setup(r => r.GetCommentWithDetailsAsync(It.IsAny<int>()))
+            .ReturnsAsync(createdComment);
+        
         
         // Act
         _commentController.ModelState.Clear();
