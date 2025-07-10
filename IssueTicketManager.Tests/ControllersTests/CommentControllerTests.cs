@@ -99,4 +99,47 @@ public class CommentControllerTests
         Assert.That(createdResult.ActionName, Is.EqualTo("GetComment"));
         Assert.That(createdResult.Value, Is.EqualTo(createdComment));
     }
+
+    [Test]
+    public async Task? GetComment_ShouldReturnNotFound_WhenCommentDoesNttExist()
+    {
+        // Arrange
+        const int nonExistingId = 999;
+        _commentRepositoryMock
+            .Setup(r => r.GetCommentWithDetailsAsync(nonExistingId))
+            .ReturnsAsync((Comment?)null);
+        
+        // Act
+        var result = await _commentController.GetComment(nonExistingId);
+        
+        // Assert
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
+    }
+    
+    [Test]
+    public async Task GetComment_ShouldReturnOkResult_WhenCommentExists()
+    {
+        // Arrange
+        const int existingId = 1;
+        
+        var existingComment = new Comment
+        {
+            Id = existingId,
+            Text = "Test comment 1",
+            UserId = 1,
+            IssueId = 101
+        };
+
+        _commentRepositoryMock
+            .Setup(r => r.GetCommentWithDetailsAsync(existingId))
+            .ReturnsAsync(existingComment);
+        
+        // Act
+        var result = await _commentController.GetComment(existingId);
+        
+        // Assert
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var okResult = (OkObjectResult)result;
+        Assert.That(okResult.Value, Is.EqualTo(existingComment));
+    }
 }
