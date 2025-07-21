@@ -1,8 +1,13 @@
 using System.Text.Json.Serialization;
+using Azure.Messaging.ServiceBus;
+using IssueTicketManager.API.Configuration;
 using IssueTicketManager.API.Data;
 using IssueTicketManager.API.Repositories;
 using IssueTicketManager.API.Repositories.Interfaces;
+using IssueTicketManager.API.Services;
+using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +22,31 @@ builder.Services.AddControllers()
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+
+// Configure Service Bus
+builder.Services.Configure<ServiceBusConfiguration>(
+    builder.Configuration.GetSection(ServiceBusConfiguration.SectionName));
+
+// Register Service Bus Client
+builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("ServiceBus") 
+                           ?? configuration.GetValue<string>("ServiceBus:ConnectionString");
+    
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Service Bus connection string is not configured");
+    }
+    
+    return new ServiceBusClient(connectionString);
+});
+
+// Register Service Bus Service
+builder.Services.AddScoped<IServiceBusService, ServiceBusService>();
+
+
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IIssueRepository, IssueRepository>();

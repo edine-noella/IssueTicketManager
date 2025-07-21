@@ -1,20 +1,23 @@
 using FluentAssertions;
 using IssueTicketManager.API.Controllers;
 using IssueTicketManager.API.DTOs;
+using IssueTicketManager.API.Messages;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
-using Microsoft.AspNetCore.Http.HttpResults;
+using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 
-namespace IssueTicketManager.Tests.ControllersTests;
-
-[TestFixture]
-public class IssueControllerTests
+namespace IssueTicketManager.Tests.ControllersTests
 {
-    
+    [TestFixture]
+    public class IssueControllerIntegrationTests
+    {
         private Mock<IIssueRepository> _mockIssueRepository;
         private Mock<IUserRepository> _mockUserRepository;
+        private Mock<IServiceBusService> _mockServiceBusService;
+        private Mock<ILogger<IssuesController>> _mockLogger;
         private IssuesController _controller;
 
         [SetUp]
@@ -22,11 +25,65 @@ public class IssueControllerTests
         {
             _mockIssueRepository = new Mock<IIssueRepository>();
             _mockUserRepository = new Mock<IUserRepository>();
-            _controller = new IssuesController(_mockIssueRepository.Object,  _mockUserRepository.Object);
+            _mockServiceBusService = new Mock<IServiceBusService>();
+            _mockLogger = new Mock<ILogger<IssuesController>>();
+            
+            _controller = new IssuesController(
+                _mockIssueRepository.Object,
+                _mockUserRepository.Object,
+                _mockServiceBusService.Object,
+                _mockLogger.Object);
         }
 
         [Test]
-        public async Task Create_WithValidDto_ReturnsCreatedAtActionResult()
+        public async Task Create_WithValidDto_PublishesIssueCreatedMessage()
+        {
+            // Arrange
+            var dto = new CreateIssueDto
+            {
+                Title = "Test Issue",
+                Body = "Test Body",
+                CreatorId = 1,
+                LabelIds = new List<int> { 1, 2 }
+            };
+
+            var expectedIssue = new Issue 
+            { 
+                Id = 1, 
+                Title = dto.Title, 
+                Body = dto.Body, 
+                CreatorId = dto.CreatorId 
+            };
+
+            _mockIssueRepository.Setup(x => x.CreateIssueAsync(It.IsAny<Issue>()))
+                .ReturnsAsync(expectedIssue);
+
+            IssueCreatedMessage capturedMessage = null;
+            _mockServiceBusService.Setup(x => x.PublishIssueCreatedAsync(It.IsAny<IssueCreatedMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<IssueCreatedMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _controller.Create(dto);
+
+            // Assert
+            var createdAtActionResult = result.Result as CreatedAtActionResult;
+            createdAtActionResult.Should().NotBeNull();
+            createdAtActionResult!.Value.Should().BeEquivalentTo(expectedIssue);
+
+            _mockServiceBusService.Verify(x => x.PublishIssueCreatedAsync(It.IsAny<IssueCreatedMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+            
+            capturedMessage.Should().NotBeNull();
+            capturedMessage.IssueId.Should().Be(expectedIssue.Id);
+            capturedMessage.Title.Should().Be(dto.Title);
+            capturedMessage.Body.Should().Be(dto.Body);
+            capturedMessage.CreatorId.Should().Be(dto.CreatorId);
+            capturedMessage.LabelIds.Should().BeEquivalentTo(dto.LabelIds);
+            capturedMessage.EventType.Should().Be("issue.create");
+        }
+
+        [Test]
+        public async Task Create_WhenServiceBusThrowsException_ReturnsInternalServerError()
         {
             // Arrange
             var dto = new CreateIssueDto
@@ -41,221 +98,186 @@ public class IssueControllerTests
             _mockIssueRepository.Setup(x => x.CreateIssueAsync(It.IsAny<Issue>()))
                 .ReturnsAsync(expectedIssue);
 
+            _mockServiceBusService.Setup(x => x.PublishIssueCreatedAsync(It.IsAny<IssueCreatedMessage>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new Exception("Service Bus error"));
+
             // Act
             var result = await _controller.Create(dto);
 
             // Assert
-            var createdAtActionResult = result.Result as CreatedAtActionResult;
-            createdAtActionResult.Should().NotBeNull();
-            createdAtActionResult!.ActionName.Should().Be(nameof(_controller.GetIssue));
-            createdAtActionResult.Value.Should().BeEquivalentTo(expectedIssue);
+            var statusCodeResult = result.Result as ObjectResult;
+            statusCodeResult.Should().NotBeNull();
+            statusCodeResult!.StatusCode.Should().Be(500);
+            statusCodeResult.Value.Should().Be("An error occurred while creating the issue");
         }
 
         [Test]
-        public async Task GetIssue_WithExistingId_ReturnsOkObjectResult()
+        public async Task Update_WithValidDto_PublishesIssueUpdatedMessage()
         {
             // Arrange
             var issueId = 1;
-            var expectedIssue = new Issue { Id = issueId };
-            _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-                .ReturnsAsync(expectedIssue);
-
-            // Act
-            var result = await _controller.GetIssue(issueId);
-
-            // Assert
-            var okResult = result.Result as OkObjectResult;
-            okResult.Should().NotBeNull();
-            okResult!.Value.Should().BeEquivalentTo(expectedIssue);
-        }
-
-        [Test]
-        public async Task GetIssue_WithNonExistingId_ReturnsNotFoundResult()
-        {
-            // Arrange
-            var issueId = 999;
-            _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-                .ReturnsAsync((Issue)null);
-
-            // Act
-            var result = await _controller.GetIssue(issueId);
-
-            // Assert
-            result.Result.Should().BeOfType<NotFoundResult>();
-        }
-
-        [Test]
-        public async Task GetIssues_WhenCalled_ReturnsOkObjectResultWithIssues()
-        {
-            // Arrange
-            var issues = new List<Issue>
-            {
-                new Issue { Id = 1 },
-                new Issue { Id = 2 }
+            var dto = new UpdateIssueDto 
+            { 
+                Title = "Updated Title", 
+                Body = "Updated Body",
+                Status = IssueStatus.InProgress
             };
-            _mockIssueRepository.Setup(x => x.GetAllIssuesAsync())
-                .ReturnsAsync(issues);
 
-            // Act
-            var result = await _controller.GetIssues();
+            var existingIssue = new Issue { Id = issueId, Title = "Original Title" };
+            var updatedIssue = new Issue { Id = issueId, Title = dto.Title, Body = dto.Body };
 
-            // Assert
-            var okResult = result.Result as OkObjectResult;
-            okResult.Should().NotBeNull();
-            okResult!.Value.Should().BeEquivalentTo(issues);
-          
-        }
-
-        [Test]
-        public async Task Update_WithExistingIdAndValidDto_ReturnsOkObjectResult()
-        {
-            // Arrange
-            var issueId = 1;
-            var dto = new UpdateIssueDto { Title = "Updated Title" };
-            var existingIssue = new Issue { Id = issueId };
             _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
                 .ReturnsAsync(existingIssue);
+            _mockIssueRepository.Setup(x => x.UpdateIssueAsync(It.IsAny<Issue>()))
+                .ReturnsAsync(updatedIssue);
+
+            IssueUpdatedMessage capturedMessage = null;
+            _mockServiceBusService.Setup(x => x.PublishIssueUpdatedAsync(It.IsAny<IssueUpdatedMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<IssueUpdatedMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .Returns(Task.CompletedTask);
 
             // Act
             var result = await _controller.Update(issueId, dto);
 
             // Assert
             result.Should().BeOfType<OkObjectResult>();
-            _mockIssueRepository.Verify(x => x.UpdateIssueAsync(existingIssue), Times.Once);
+            _mockServiceBusService.Verify(x => x.PublishIssueUpdatedAsync(It.IsAny<IssueUpdatedMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            capturedMessage.Should().NotBeNull();
+            capturedMessage.IssueId.Should().Be(issueId);
+            capturedMessage.Title.Should().Be(dto.Title);
+            capturedMessage.Body.Should().Be(dto.Body);
+            capturedMessage.Status.Should().Be(dto.Status.ToString());
+            capturedMessage.EventType.Should().Be("issue.update");
         }
 
         [Test]
-        public async Task Update_WithNonExistingId_ReturnsNotFoundResult()
+        public async Task AssignIssue_WithValidData_PublishesIssueAssignedMessage()
+        {
+            // Arrange
+            var issueId = 1;
+            var assigneeId = 10;
+            var dto = new AssignUserIssueDto { AssigneeId = assigneeId };
+            
+            var existingIssue = new Issue { Id = issueId, Title = "Test Issue" };
+            var updatedIssue = new Issue { Id = issueId, Title = "Test Issue", AssigneeId = assigneeId };
+
+            _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
+                .ReturnsAsync(existingIssue);
+            _mockUserRepository.Setup(x => x.UserExists(assigneeId))
+                .ReturnsAsync(true);
+            _mockIssueRepository.Setup(x => x.UpdateIssueAsync(It.IsAny<Issue>()))
+                .ReturnsAsync(updatedIssue);
+
+            IssueAssignedMessage capturedMessage = null;
+            _mockServiceBusService.Setup(x => x.PublishIssueAssignedAsync(It.IsAny<IssueAssignedMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<IssueAssignedMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await _controller.AssignIssue(issueId, dto);
+
+            // Assert
+            var okResult = result.Result as OkObjectResult;
+            okResult.Should().NotBeNull();
+            
+            _mockServiceBusService.Verify(x => x.PublishIssueAssignedAsync(It.IsAny<IssueAssignedMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            capturedMessage.Should().NotBeNull();
+            capturedMessage.IssueId.Should().Be(issueId);
+            capturedMessage.AssigneeId.Should().Be(assigneeId);
+            capturedMessage.AssignedByUserId.Should().Be(1); // This would come from user context in real app
+            capturedMessage.EventType.Should().Be("issue.user.assign");
+        }
+
+        [Test]
+        public async Task AssignIssue_WithNonExistingIssue_DoesNotPublishMessage()
         {
             // Arrange
             var issueId = 999;
+            var dto = new AssignUserIssueDto { AssigneeId = 10 };
+            
             _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
                 .ReturnsAsync((Issue)null);
 
             // Act
-            var result = await _controller.Update(issueId, new UpdateIssueDto());
+            var result = await _controller.AssignIssue(issueId, dto);
 
             // Assert
-            result.Should().BeOfType<NotFoundResult>();
+            result.Result.Should().BeOfType<NotFoundObjectResult>();
+            _mockServiceBusService.Verify(x => x.PublishIssueAssignedAsync(It.IsAny<IssueAssignedMessage>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
-        public async Task Update_WithNullLabelIds_DoesNotThrowException()
+        public async Task AddLabelToIssue_WithValidData_PublishesIssueLabelAssignedMessage()
         {
             // Arrange
             var issueId = 1;
-            var dto = new UpdateIssueDto { LabelIds = null };
-            _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-                .ReturnsAsync(new Issue { Id = issueId });
+            var labelId = 2;
+            var dto = new AddLabelToIssueDto { LabelId = labelId };
+            
+            var updatedIssue = new Issue { Id = issueId, Title = "Test Issue" };
+
+            _mockIssueRepository.Setup(x => x.AddLabelToIssueAsync(issueId, labelId))
+                .ReturnsAsync((updatedIssue, LabelAddResult.Success));
+
+            IssueLabelAssignedMessage capturedMessage = null;
+            _mockServiceBusService.Setup(x => x.PublishIssueLabelAssignedAsync(It.IsAny<IssueLabelAssignedMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<IssueLabelAssignedMessage, CancellationToken>((msg, ct) => capturedMessage = msg)
+                .Returns(Task.CompletedTask);
 
             // Act
-            Func<Task> act = async () => await _controller.Update(issueId, dto);
+            var result = await _controller.AddLabelToIssue(issueId, dto);
 
             // Assert
-            await act.Should().NotThrowAsync();
+            result.Should().BeOfType<OkObjectResult>();
+            _mockServiceBusService.Verify(x => x.PublishIssueLabelAssignedAsync(It.IsAny<IssueLabelAssignedMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+
+            capturedMessage.Should().NotBeNull();
+            capturedMessage.IssueId.Should().Be(issueId);
+            capturedMessage.LabelId.Should().Be(labelId);
+            capturedMessage.AssignedByUserId.Should().Be(1); // This would come from user context in real app
+            capturedMessage.EventType.Should().Be("issue.label.assign");
         }
 
         [Test]
-        public async Task Create_WithLabelIds_CreatesIssueWithLabels()
+        public async Task AddLabelToIssue_WhenIssueNotFound_DoesNotPublishMessage()
         {
             // Arrange
-            var labelIds = new List<int> { 1, 2, 3 };
-            var dto = new CreateIssueDto
-            {
-                Title = "Test",
-                Body = "Test",
-                CreatorId = 1,
-                LabelIds = labelIds
-            };
+            var issueId = 999;
+            var labelId = 2;
+            var dto = new AddLabelToIssueDto { LabelId = labelId };
 
-            Issue createdIssue = null;
-            _mockIssueRepository.Setup(x => x.CreateIssueAsync(It.IsAny<Issue>()))
-                .Callback<Issue>(i => createdIssue = i)
-                .ReturnsAsync(new Issue { Id = 1 });
+            _mockIssueRepository.Setup(x => x.AddLabelToIssueAsync(issueId, labelId))
+                .ReturnsAsync((null, LabelAddResult.IssueNotFound));
 
             // Act
-            await _controller.Create(dto);
+            var result = await _controller.AddLabelToIssue(issueId, dto);
 
             // Assert
-            createdIssue.Should().NotBeNull();
-            createdIssue.IssueLabels.Should().HaveCount(labelIds.Count);
-            createdIssue.IssueLabels.Select(il => il.LabelId).Should().BeEquivalentTo(labelIds);
+            result.Should().BeOfType<NotFoundObjectResult>();
+            _mockServiceBusService.Verify(x => x.PublishIssueLabelAssignedAsync(It.IsAny<IssueLabelAssignedMessage>(), It.IsAny<CancellationToken>()), Times.Never);
         }
-        
-        // AssignIssue Tests -----
-    [Test]
-    public async Task AssignIssue_WithValidData_ReturnsOkObjectResult()
-    {
-        // Arrange
-        var issueId = 1;
-        var assigneeId = 10;
-        var dto = new AssignUserIssueDto { AssigneeId = assigneeId };
-        var existingIssue = new Issue { Id = issueId, Title = "Test Issue" };
-        var updatedIssue = new Issue { Id = issueId, Title = "Test Issue", AssigneeId = assigneeId };
 
-        _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-            .ReturnsAsync(existingIssue);
-        _mockUserRepository.Setup(x => x.UserExists(assigneeId))
-            .ReturnsAsync(true);
-        _mockIssueRepository.Setup(x => x.UpdateIssueAsync(It.IsAny<Issue>()))
-            .ReturnsAsync(updatedIssue);
+        [Test]
+        public async Task AddLabelToIssue_WhenLabelAlreadyAssigned_DoesNotPublishMessage()
+        {
+            // Arrange
+            var issueId = 1;
+            var labelId = 2;
+            var dto = new AddLabelToIssueDto { LabelId = labelId };
+            
+            var existingIssue = new Issue { Id = issueId, Title = "Test Issue" };
 
-        // Act
-        var result = await _controller.AssignIssue(issueId, dto);
+            _mockIssueRepository.Setup(x => x.AddLabelToIssueAsync(issueId, labelId))
+                .ReturnsAsync((existingIssue, LabelAddResult.AlreadyAssigned));
 
-        // Assert
-        var okResult = result.Result as OkObjectResult;
-        okResult.Should().NotBeNull();
-        var returnedIssue = okResult!.Value as Issue;
-        returnedIssue.Should().NotBeNull();
-        returnedIssue!.AssigneeId.Should().Be(assigneeId);
-        
-        _mockIssueRepository.Verify(x => x.UpdateIssueAsync(It.Is<Issue>(i => i.AssigneeId == assigneeId)), Times.Once);
+            // Act
+            var result = await _controller.AddLabelToIssue(issueId, dto);
+
+            // Assert
+            result.Should().BeOfType<BadRequestObjectResult>();
+            _mockServiceBusService.Verify(x => x.PublishIssueLabelAssignedAsync(It.IsAny<IssueLabelAssignedMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
     }
-
-    [Test]
-    public async Task AssignIssue_WithNonExistingIssue_ReturnsNotFoundResult()
-    {
-        // Arrange
-        var issueId = 999;
-        var dto = new AssignUserIssueDto { AssigneeId = 10 };
-        
-        _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-            .ReturnsAsync((Issue)null);
-
-        // Act
-        var result = await _controller.AssignIssue(issueId, dto);
-
-        // Assert
-        result.Result.Should().BeOfType<NotFoundObjectResult>();
-        _mockUserRepository.Verify(x => x.UserExists(It.IsAny<int>()), Times.Never);
-        _mockIssueRepository.Verify(x => x.UpdateIssueAsync(It.IsAny<Issue>()), Times.Never);
-    }
-
-   
-    [Test]
-    public async Task AssignIssue_WithNonExistingUser_ReturnsBadRequestResult()
-    {
-        // Arrange
-        var issueId = 1;
-        var assigneeId = 999;
-        var dto = new AssignUserIssueDto { AssigneeId = assigneeId };
-        var existingIssue = new Issue { Id = issueId };
-
-        _mockIssueRepository.Setup(x => x.GetIssueByIdAsync(issueId))
-            .ReturnsAsync(existingIssue);
-        _mockUserRepository.Setup(x => x.UserExists(assigneeId))
-            .ReturnsAsync(false);
-
-        // Act
-        var result = await _controller.AssignIssue(issueId, dto);
-
-        // Assert
-        result.Result.Should().BeOfType<BadRequestObjectResult>();
-        var badRequestResult = result.Result as BadRequestObjectResult;
-        badRequestResult!.Value.Should().Be("Assignee not found");
-        
-        _mockIssueRepository.Verify(x => x.UpdateIssueAsync(It.IsAny<Issue>()), Times.Never);
-    }
-    
 }

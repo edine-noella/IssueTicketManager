@@ -1,7 +1,9 @@
 using System.Linq.Expressions;
 using IssueTicketManager.API.DTOs;
+using IssueTicketManager.API.Messages;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
+using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IssueTicketManager.API.Controllers;
@@ -11,10 +13,15 @@ namespace IssueTicketManager.API.Controllers;
 public class LabelsController : ControllerBase
 {
     private readonly ILabelRepository _repository;
+    private readonly IServiceBusService _serviceBusService;
+    private readonly ILogger<LabelsController> _logger;
 
-    public LabelsController(ILabelRepository repository)
+    public LabelsController(ILabelRepository repository,  IServiceBusService serviceBusService, ILogger<LabelsController> logger)
     {
         _repository = repository;
+        _serviceBusService = serviceBusService;
+        _logger = logger;
+        
     }
 
     [HttpPost]
@@ -35,6 +42,17 @@ public class LabelsController : ControllerBase
 
 
             var createdLabel = await _repository.CreateLabelAsync(label);
+            
+            // Publish message to Service Bus
+            var message = new LabelCreatedMessage
+            {
+                LabelId = createdLabel.Id,
+                Name = createdLabel.Name, 
+                Color = createdLabel.Color,
+            };
+
+            await _serviceBusService.PublishLabelCreatedAsync(message);
+            
             return CreatedAtAction(nameof(GetLabelById), new { id = createdLabel.Id }, createdLabel);
 
         }
