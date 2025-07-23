@@ -1,6 +1,8 @@
 using IssueTicketManager.API.DTOs;
+using IssueTicketManager.API.Messages;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
+using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace IssueTicketManager.API.Controllers;
@@ -10,34 +12,62 @@ namespace IssueTicketManager.API.Controllers;
 public class UserController : ControllerBase
 {
    private readonly IUserRepository _userRepository;
+   private readonly IServiceBusService _serviceBusService;
+   private readonly ILogger<UserController> _logger;
 
-   public UserController(IUserRepository userRepository)
+   public UserController(IUserRepository userRepository,  IServiceBusService serviceBusService, ILogger<UserController> logger)
    {
       _userRepository = userRepository;
+      _serviceBusService = serviceBusService;
+      _logger = logger;
    }
 
    [HttpPost]
-   public async Task<ActionResult<User>> CreateUser([FromBody] CreateUserDto user)
+   public async Task<ActionResult<User>> CreateUser(CreateUserDto user)
    {
-      if (!ModelState.IsValid)
+      try
       {
-         return BadRequest(ModelState);
-      }
-      
-      var existingUser = await _userRepository.GetUserByEmail(user.Email);
-      if(existingUser != null)  return Conflict((new { message = "User with email already exists." }));
+         if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-      var newUser = new User
+         var existingUser = await _userRepository.GetUserByEmail(user.Email);
+         if (existingUser != null)
+            return Conflict(new { message = "User with email already exists." });
+
+         var newUser = new User
          {
             Name = user.Name,
             Email = user.Email
          };
-         
-         await _userRepository.CreateUser(newUser);
-         return CreatedAtAction(nameof(GetUserByEmail), new { email = newUser.Email }, newUser);
 
-      
-     
+         await _userRepository.CreateUser(newUser);
+
+         try
+         {
+            var message = new UserCreatedMessage
+            {
+               UserId = newUser.Id,
+               Username = newUser.Name,
+               Email = newUser.Email,
+            };
+            
+            await _serviceBusService.PublishUserCreatedAsync(message);
+         }
+         catch (Exception ex)
+         {
+            _logger.LogError(ex, "Failed to publish user created message");
+         }
+         
+         return CreatedAtAction(
+            actionName: nameof(GetUserByEmail), 
+            routeValues: new { email = newUser.Email }, 
+            value: newUser);
+      }
+      catch (Exception ex)
+      {
+         _logger.LogError(ex, "Error creating user");
+         return StatusCode(500, "An error occurred while creating the user");
+      }
    }
 
    [HttpPut("{email}")]

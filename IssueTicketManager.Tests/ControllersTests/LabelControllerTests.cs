@@ -3,7 +3,9 @@ using IssueTicketManager.API.Controllers;
 using IssueTicketManager.API.DTOs;
 using IssueTicketManager.API.Models;
 using IssueTicketManager.API.Repositories.Interfaces;
+using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace IssueTicketManager.Tests.ControllersTests;
@@ -13,12 +15,16 @@ public class LabelControllerTests
 {
       private Mock<ILabelRepository> _mockRepository;
         private LabelsController _controller;
+        private Mock<IServiceBusService> _serviceBusServiceMock;
+        private Mock<ILogger<LabelsController>> _mockLogger;
 
         [SetUp]
         public void Setup()
         {
             _mockRepository = new Mock<ILabelRepository>();
-            _controller = new LabelsController(_mockRepository.Object);
+            _mockLogger = new Mock<ILogger<LabelsController>>();
+            _serviceBusServiceMock = new Mock<IServiceBusService>();
+            _controller = new LabelsController(_mockRepository.Object,  _serviceBusServiceMock.Object, _mockLogger.Object);
         }
 
         [Test]
