@@ -115,7 +115,6 @@ namespace IssueTicketManager.API.Services
                 await sender.DisposeAsync();
             }
             _senders.Clear();
-            // await _client.DisposeAsync();
         }
     }
 }
