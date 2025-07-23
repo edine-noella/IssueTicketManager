@@ -146,7 +146,6 @@ namespace IssueTicketManager.API.Controllers
                 {
                     IssueId = id,
                     AssigneeId = dto.AssigneeId.Value,
-                    AssignedByUserId = 1 // You would get this from the current user context
                 };
 
                 await _serviceBusService.PublishIssueAssignedAsync(message);
@@ -184,7 +183,7 @@ namespace IssueTicketManager.API.Controllers
                         {
                             IssueId = id,
                             LabelId = dto.LabelId,
-                            AssignedByUserId = 1 // You would get this from the current user context
+                           
                         };
 
                         await _serviceBusService.PublishIssueLabelAssignedAsync(message);

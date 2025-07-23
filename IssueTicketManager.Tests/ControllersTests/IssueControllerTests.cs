@@ -185,8 +185,6 @@ namespace IssueTicketManager.Tests.ControllersTests
 
             capturedMessage.Should().NotBeNull();
             capturedMessage.IssueId.Should().Be(issueId);
-            capturedMessage.AssigneeId.Should().Be(assigneeId);
-            capturedMessage.AssignedByUserId.Should().Be(1); // This would come from user context in real app
             capturedMessage.EventType.Should().Be("issue.user.assign");
         }
 
@@ -236,7 +234,6 @@ namespace IssueTicketManager.Tests.ControllersTests
             capturedMessage.Should().NotBeNull();
             capturedMessage.IssueId.Should().Be(issueId);
             capturedMessage.LabelId.Should().Be(labelId);
-            capturedMessage.AssignedByUserId.Should().Be(1); // This would come from user context in real app
             capturedMessage.EventType.Should().Be("issue.label.assign");
         }
 

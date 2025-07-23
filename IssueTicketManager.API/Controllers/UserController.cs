@@ -57,8 +57,7 @@ public class UserController : ControllerBase
          {
             _logger.LogError(ex, "Failed to publish user created message");
          }
-
-         // Return the created user with 201 status
+         
          return CreatedAtAction(
             actionName: nameof(GetUserByEmail), 
             routeValues: new { email = newUser.Email }, 
