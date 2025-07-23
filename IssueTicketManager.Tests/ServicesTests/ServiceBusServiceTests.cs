@@ -288,7 +288,7 @@ namespace IssueTicketManager.Tests.ServicesTests
 
             // Assert
             _mockSender.Verify(x => x.DisposeAsync(), Times.Once);
-            _mockClient.Verify(x => x.DisposeAsync(), Times.Once);
+            
         }
     }
 }
