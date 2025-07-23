@@ -91,14 +91,21 @@ namespace IssueTicketManager.API.Services
 
         private async Task<ServiceBusSender> GetOrCreateSenderAsync(string topicName)
         {
-            if (_senders.TryGetValue(topicName, out var existingSender))
+            if (_senders.TryGetValue(topicName, out var existingSender) && !_client.IsClosed)
             {
                 return existingSender;
             }
+            
+            _logger.LogWarning("Sender for topic {topicName} was disposed or closed; recreating sender.", topicName);
+            return await CreateAndCacheSenderAsync(topicName);
+          
+        }
 
+        private Task<ServiceBusSender> CreateAndCacheSenderAsync(string topicName)
+        {
             var sender = _client.CreateSender(topicName);
             _senders[topicName] = sender;
-            return sender;
+            return Task.FromResult(sender);
         }
 
         public async ValueTask DisposeAsync()
@@ -108,7 +115,7 @@ namespace IssueTicketManager.API.Services
                 await sender.DisposeAsync();
             }
             _senders.Clear();
-            await _client.DisposeAsync();
+            // await _client.DisposeAsync();
         }
     }
 }
