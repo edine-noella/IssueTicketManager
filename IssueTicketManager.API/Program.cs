@@ -7,6 +7,7 @@ using IssueTicketManager.API.Repositories.Interfaces;
 using IssueTicketManager.API.Services;
 using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -42,6 +43,17 @@ builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
     
     return new ServiceBusClient(connectionString);
 });
+
+// Register Service Bus Producers
+builder.Services.AddSingleton<TicketMessageConsumer>();
+
+builder.Services.AddSingleton(serviceProvider =>
+    new TicketMessageConsumer(
+        serviceProvider.GetRequiredService<ServiceBusClient>(),
+        serviceProvider.GetRequiredService<ILogger<TicketMessageConsumer>>(),
+        serviceProvider.GetRequiredService<IOptions<ServiceBusConfiguration>>())
+);
+builder.Services.AddHostedService<ServiceBusBackgroundService>();
 
 // Register Service Bus Service
 builder.Services.AddScoped<IServiceBusService, ServiceBusService>();
