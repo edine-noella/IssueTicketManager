@@ -109,7 +109,7 @@ public class TicketMessageConsumer: IAsyncDisposable
     {
         if (_commentProcessor != null)
         {
-            await _commentProcessor.StartProcessingAsync();
+            await _commentProcessor.StopProcessingAsync();
             await _commentProcessor.DisposeAsync();
         }
     }

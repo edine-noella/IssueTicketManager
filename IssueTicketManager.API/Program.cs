@@ -47,12 +47,6 @@ builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
 // Register Service Bus Producers
 builder.Services.AddSingleton<TicketMessageConsumer>();
 
-builder.Services.AddSingleton(serviceProvider =>
-    new TicketMessageConsumer(
-        serviceProvider.GetRequiredService<ServiceBusClient>(),
-        serviceProvider.GetRequiredService<ILogger<TicketMessageConsumer>>(),
-        serviceProvider.GetRequiredService<IOptions<ServiceBusConfiguration>>())
-);
 builder.Services.AddHostedService<ServiceBusBackgroundService>();
 
 // Register Service Bus Service
@@ -79,10 +73,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
 
 app.MapControllers();
 
-app.UseHttpsRedirection();
+
 
 
 
