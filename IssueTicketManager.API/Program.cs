@@ -7,6 +7,7 @@ using IssueTicketManager.API.Repositories.Interfaces;
 using IssueTicketManager.API.Services;
 using IssueTicketManager.API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +44,12 @@ builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
     return new ServiceBusClient(connectionString);
 });
 
+// Register the services background service managing processors
+builder.Services.AddHostedService<ServiceBusBackgroundService>();
+
+// Register the processor factory as singleton
+builder.Services.AddScoped<MessageHandlerService>();
+
 // Register Service Bus Service
 builder.Services.AddScoped<IServiceBusService, ServiceBusService>();
 
@@ -67,10 +74,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
 
 app.MapControllers();
 
-app.UseHttpsRedirection();
+
 
 
 
