@@ -3,25 +3,23 @@ using IssueTicketManager.API.Configuration;
 using IssueTicketManager.API.Services;
 using Microsoft.Extensions.Options;
 
-namespace IssueTicketManager.API.Services;
-
 public class ServiceBusBackgroundService : BackgroundService
 {
     private readonly ServiceBusClient _client;
     private readonly ServiceBusConfiguration _configuration;
-    private readonly MessageHandlerService _messageHandlerService;
+    private readonly IServiceProvider _serviceProvider; 
     private readonly ILogger<ServiceBusBackgroundService> _logger;
     private readonly List<ServiceBusProcessor> _processors = new();
 
     public ServiceBusBackgroundService(
         ServiceBusClient client,
         IOptions<ServiceBusConfiguration> config,
-        MessageHandlerService messageHandlerService,
+        IServiceProvider serviceProvider, 
         ILogger<ServiceBusBackgroundService> logger)
     {
         _client = client;
         _configuration = config.Value;
-        _messageHandlerService = messageHandlerService;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -42,7 +40,15 @@ public class ServiceBusBackgroundService : BackgroundService
         {
             var processor = _client.CreateProcessor(topic, "import", new ServiceBusProcessorOptions());
 
-            processor.ProcessMessageAsync += _messageHandlerService.HandleMessageAsync;
+            // Create handler delegate which creates a scope per message
+            processor.ProcessMessageAsync += async args =>
+            {
+                using var scope = _serviceProvider.CreateScope();
+
+                var handler = scope.ServiceProvider.GetRequiredService<MessageHandlerService>();
+                await handler.HandleMessageAsync(args);
+            };
+
             processor.ProcessErrorAsync += async args =>
                 _logger.LogError(args.Exception, "Error processing message from topic {Topic}", topic);
 
