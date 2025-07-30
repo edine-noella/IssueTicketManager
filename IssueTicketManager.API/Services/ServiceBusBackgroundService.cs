@@ -3,6 +3,8 @@ using IssueTicketManager.API.Configuration;
 using IssueTicketManager.API.Services;
 using Microsoft.Extensions.Options;
 
+namespace IssueTicketManager.API.Services;
+
 public class ServiceBusBackgroundService : BackgroundService
 {
     private readonly ServiceBusClient _client;
