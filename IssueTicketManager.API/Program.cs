@@ -44,10 +44,11 @@ builder.Services.AddSingleton<ServiceBusClient>(serviceProvider =>
     return new ServiceBusClient(connectionString);
 });
 
-// Register Service Bus Producers
-builder.Services.AddSingleton<TicketMessageConsumer>();
-
+// Register the services background service managing processors
 builder.Services.AddHostedService<ServiceBusBackgroundService>();
+
+// Register the processor factory as singleton
+builder.Services.AddScoped<MessageHandlerService>();
 
 // Register Service Bus Service
 builder.Services.AddScoped<IServiceBusService, ServiceBusService>();
